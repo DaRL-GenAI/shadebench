@@ -2,8 +2,10 @@
 // DeepShade × ShadeBench — interactive demo
 // =============================================================
 
-// 34 cities of ShadeBench, with country flags for the gallery.
-const CITIES = [
+// All 34 cities in ShadeBench; only the READY subset currently has fully
+// prepared assets (timeline + all modalities). The rest will appear as
+// disabled "coming soon" cards in the gallery.
+const ALL_CITIES = [
   ["abuja","🇳🇬"], ["aswan","🇪🇬"], ["auckland","🇳🇿"], ["aversa","🇮🇹"],
   ["beijing","🇨🇳"], ["brasilia","🇧🇷"], ["buenosaires","🇦🇷"], ["cairo","🇪🇬"],
   ["calgary","🇨🇦"], ["capetown","🇿🇦"], ["guadalajara","🇲🇽"], ["jaipur","🇮🇳"],
@@ -14,6 +16,8 @@ const CITIES = [
   ["sydney","🇦🇺"], ["tempe","🇺🇸"], ["tokyo","🇯🇵"], ["toronto","🇨🇦"],
   ["valparaiso","🇨🇱"], ["xian","🇨🇳"],
 ];
+const READY = new Set(["cairo", "paris", "phoenix", "rome", "sydney", "tokyo"]);
+const CITIES = ALL_CITIES.filter(([c]) => READY.has(c));
 const PRETTY = {
   saupaulo: "São Paulo", buenosaires: "Buenos Aires",
   capetown: "Cape Town", xian: "Xi'an",
@@ -163,6 +167,8 @@ function togglePlay() {
 // -------------------------------------------------------------
 function initGallery() {
   const grid = $("#cityGrid");
+
+  // Ready cities — interactive cards.
   CITIES.forEach(([c, flag], i) => {
     const card = document.createElement("div");
     card.className = "city-card";
@@ -184,6 +190,29 @@ function initGallery() {
     });
     grid.appendChild(card);
   });
+
+  // Placeholder cards for cities still being prepared.
+  const pending = ALL_CITIES.filter(([c]) => !READY.has(c));
+  pending.forEach(([c, flag]) => {
+    const card = document.createElement("div");
+    card.className = "city-card city-card-soon";
+    card.title = `${prettyName(c)} — coming soon`;
+    card.innerHTML = `
+      <div class="soon-overlay">
+        <div class="soon-badge">Coming soon</div>
+      </div>
+      <div class="city-tag">
+        <span class="city-name">${prettyName(c)}</span>
+        <span class="city-flag">${flag}</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+
+  // Footnote under the grid.
+  const note = document.createElement("p");
+  note.className = "gallery-note";
+  note.innerHTML = `<b>${CITIES.length}</b> cities live · <b>${pending.length}</b> more being prepared from the full 34-city ShadeBench release.`;
+  grid.after(note);
 }
 
 // -------------------------------------------------------------

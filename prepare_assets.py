@@ -39,6 +39,13 @@ ASSETS = ROOT / "assets"
 DEMO = ASSETS / "demo"
 THUMBS = ASSETS / "cities"
 REPO = "DARL-ASU/ShadeBench"
+ALL_CITIES = [
+    "abuja", "aswan", "auckland", "aversa", "beijing", "brasilia", "buenosaires", "cairo",
+    "calgary", "capetown", "guadalajara", "jaipur", "johannesburg", "lagos", "madrid", "mexico",
+    "mumbai", "nagoya", "nimes", "outback", "paris", "phoenix", "rome", "rotorua",
+    "salta", "santiago", "saupaulo", "seville", "sydney", "tempe", "tokyo", "toronto",
+    "valparaiso", "xian",
+]
 
 HOUR_RX = re.compile(r"_(\d+)h_(row\d+_col\d+)\.png$", re.I)
 TILE_RX = re.compile(r"(row\d+_col\d+)", re.I)
@@ -63,10 +70,12 @@ def _index_targets(zf: zipfile.ZipFile) -> dict[str, dict[int, str]]:
     return out
 
 
-def _find_tile_member(zf: zipfile.ZipFile, tile: str, *, contains: str) -> str | None:
+def _find_tile_member(zf: zipfile.ZipFile, tile: str, *, contains: str | tuple[str, ...]) -> str | None:
     tile_l = tile.lower()
+    markers = (contains,) if isinstance(contains, str) else contains
     for n in zf.namelist():
-        if contains in n.lower() and tile_l in n.lower() and n.lower().endswith((".png", ".jpg", ".jpeg")):
+        n_l = n.lower()
+        if any(m in n_l for m in markers) and tile_l in n_l and n_l.endswith((".png", ".jpg", ".jpeg")):
             return n
     return None
 
@@ -131,7 +140,8 @@ def prepare_city(city: str, zip_path: Path, *, tile: str | None = None, timeline
         if sat_member:
             _extract_resized(zf, sat_member, out_dir / "satellite.jpg")
 
-        mask_member = _find_tile_member(zf, chosen_tile, contains="/masked/")
+        # some archives use /masked/, others use /mask/
+        mask_member = _find_tile_member(zf, chosen_tile, contains=("/masked/", "/mask/"))
         if mask_member:
             _extract_resized(zf, mask_member, out_dir / "mask.jpg")
 
@@ -152,6 +162,11 @@ def main():
     ap.add_argument("--tile", default=None, help="tile id like row0_col0 (auto-picked if omitted)")
     ap.add_argument("--thumbs", nargs="*", default=[],
                     help="extra cities to download just for gallery thumbnails")
+    ap.add_argument(
+        "--all-cities",
+        action="store_true",
+        help="download and prepare timeline + modalities + thumbnail for every city in app.js",
+    )
     args = ap.parse_args()
 
     try:
@@ -161,14 +176,20 @@ def main():
         print("install deps first:  pip install huggingface_hub pillow", file=sys.stderr)
         sys.exit(1)
 
-    zp = download_city_zip(args.city)
-    prepare_city(args.city, zp, tile=args.tile, timeline=True)
+    if args.all_cities:
+        print(f"[all] preparing {len(ALL_CITIES)} cities")
+        for city in ALL_CITIES:
+            zp = download_city_zip(city)
+            prepare_city(city, zp, timeline=True)
+    else:
+        zp = download_city_zip(args.city)
+        prepare_city(args.city, zp, tile=args.tile, timeline=True)
 
-    for extra in args.thumbs:
-        if extra == args.city:
-            continue
-        zp2 = download_city_zip(extra)
-        prepare_city(extra, zp2, timeline=False)
+        for extra in args.thumbs:
+            if extra == args.city:
+                continue
+            zp2 = download_city_zip(extra)
+            prepare_city(extra, zp2, timeline=False)
 
     print("[ok] open index.html")
 
